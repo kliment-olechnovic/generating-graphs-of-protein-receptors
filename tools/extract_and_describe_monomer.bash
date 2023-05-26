@@ -1,24 +1,21 @@
 #!/bin/bash
 
-PDBID="$1"
-ASSEMBLYNUM="$2"
-CHAIN="$3"
-EXTRAARG="$4"
+COMPLEXFILE="$1"
+CHAIN="$2"
+EXTRAARG="$3"
 
-if [ -z "$PDBID" ] || [ -z "$ASSEMBLYNUM" ] || [ -z "$CHAIN" ] || [ -n "$EXTRAARG" ]
+if [ -z "$COMPLEXFILE" ] || [ -z "$CHAIN" ] || [ -n "$EXTRAARG" ]
 then
-	echo >&2 "Error: invalid arguments, need exactly three: PDBID ASSEMBLYNUM CHAIN"
+	echo >&2 "Error: invalid arguments, need exactly two: COMPLEXFILE CHAIN"
 	exit 1
 fi
 
-cd "$(dirname $0)/.."
-
-COMPLEX_BASENAME="${PDBID}_as_${ASSEMBLYNUM}"
+COMPLEX_BASENAME="$(basename $(dirname $COMPLEXFILE))"
 COMPLEX_OUTPREFIX="./data/complexes/${COMPLEX_BASENAME}/${COMPLEX_BASENAME}"
 
 if [ ! -s "${COMPLEX_OUTPREFIX}_structure.pdb" ] || [ ! -s "${COMPLEX_OUTPREFIX}_sequences.fasta" ] || [ ! -s "${COMPLEX_OUTPREFIX}_iface_contacts.tsv" ] || [ ! -s "${COMPLEX_OUTPREFIX}_bsite_areas.tsv" ]
 then
-	echo >&2 "Error: complex data not available for PDBID $PDBID assembly $ASSEMBLYNUM"
+	echo >&2 "Error: complex data not available for complex $COMPLEX_BASENAME"
 	exit 1
 fi
 
@@ -27,13 +24,13 @@ then
 	CHAIN="$(cat ${COMPLEX_OUTPREFIX}_sequences.fasta | head -1 | tr -d '>' | awk '{print $1}')"
 fi
 
-MONOMER_BASENAME="${PDBID}_as_${ASSEMBLYNUM}_chain_${CHAIN}"
+MONOMER_BASENAME="${COMPLEX_BASENAME}_chain_${CHAIN}"
 MONOMER_OUTPREFIX="./data/monomers/${MONOMER_BASENAME}/${MONOMER_BASENAME}"
 
 if [ -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] && [ -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] && [ -s "${MONOMER_OUTPREFIX}_monomer.pdb" ]
 then
-	echo >&2 "Skipping: graph data already available for PDBID $PDBID assembly $ASSEMBLYNUM chain $CHAIN"
-	#exit 0
+	echo >&2 "Skipping: graph data already available for complex $COMPLEX_BASENAME chain $CHAIN"
+	exit 0
 fi
 
 mkdir -p "$(dirname ${MONOMER_OUTPREFIX})"

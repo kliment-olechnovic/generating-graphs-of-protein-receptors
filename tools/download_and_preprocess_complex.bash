@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PDBID="$1"
+PDBID="$(echo $1 | tr '[:upper:]' '[:lower:]')"
 ASSEMBLYNUM="$2"
 EXTRAARG="$3"
 
@@ -9,8 +9,6 @@ then
 	echo >&2 "Error: invalid arguments, need exactly two: PDBID ASSEMBLYNUM"
 	exit 1
 fi
-
-cd "$(dirname $0)/.."
 
 COMPLEX_BASENAME="${PDBID}_as_${ASSEMBLYNUM}"
 COMPLEX_OUTPREFIX="./data/complexes/${COMPLEX_BASENAME}/${COMPLEX_BASENAME}"
