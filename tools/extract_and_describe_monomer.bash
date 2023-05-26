@@ -86,12 +86,19 @@ voronota_set_adjunct_of_atoms_by_residue_pooling('-source-name mc_ufsr_a3 -desti
 voronota_set_adjunct_of_atoms_by_residue_pooling('-source-name mc_ufsr_b3 -destination-name ufsr_b3 -pooling-mode max');
 voronota_set_adjunct_of_atoms_by_residue_pooling('-source-name mc_ufsr_c3 -destination-name ufsr_c3 -pooling-mode max');
 
+voronota_describe_exposure("-adj-atom-exposure-value ev14 -probe-min 1.4 -probe-max 30 -expansion 1 -smoothing-iterations 0 -smoothing-depth 0");
+voronota_describe_exposure("-adj-atom-exposure-value ev28 -probe-min 2.8 -probe-max 30 -expansion 1 -smoothing-iterations 0 -smoothing-depth 0");
+voronota_describe_exposure("-adj-atom-exposure-value ev56 -probe-min 5.6 -probe-max 30 -expansion 1 -smoothing-iterations 0 -smoothing-depth 0");
+
 voronota_auto_assert_full_success=false;
 voronota_set_adjunct_of_atoms("-use [-v! sas_area] -name sas_area -value 0");
 voronota_set_adjunct_of_atoms("-use [-v! solvdir_x] -name solvdir_x -value 0");
 voronota_set_adjunct_of_atoms("-use [-v! solvdir_y] -name solvdir_y -value 0");
 voronota_set_adjunct_of_atoms("-use [-v! solvdir_z] -name solvdir_z -value 0");
 voronota_set_adjunct_of_atoms("-use [-v! voromqa_sas_potential] -name voromqa_sas_potential -value 0");
+voronota_set_adjunct_of_atoms("-use [-v! ev14] -name ev14 -value 2");
+voronota_set_adjunct_of_atoms("-use [-v! ev28] -name ev28 -value 2");
+voronota_set_adjunct_of_atoms("-use [-v! ev56] -name ev56 -value 2");
 voronota_auto_assert_full_success=true;
 
 voronota_set_adjunct_of_atoms_by_expression("-use [] -expression _multiply -input-adjuncts voromqa_sas_potential sas_area -output-adjunct voromqa_sas_energy");
@@ -115,7 +122,7 @@ voronota_auto_assert_full_success=true;
 
 voronota_export_atoms('-as-pdb', '-file', params.output_prefix+'_monomer.pdb', '-pdb-b-factor', 'bsite_area');
 	
-voronota_export_adjuncts_of_atoms('-file', params.output_prefix+'_graph_nodes.csv', '-use', '[]', '-no-serial', '-adjuncts', ['atom_index', 'residue_index', 'atom_type', 'residue_type', 'center_x', 'center_y', 'center_z', 'radius', 'sas_area', 'solvdir_x', 'solvdir_y', 'solvdir_z', 'voromqa_sas_energy', 'voromqa_depth', 'voromqa_score_a', 'voromqa_score_r', 'volume', 'volume_vdw', 'ufsr_a1', 'ufsr_a2', 'ufsr_a3', 'ufsr_b1', 'ufsr_b2', 'ufsr_b3', 'ufsr_c1', 'ufsr_c2', 'ufsr_c3', 'bsite_area'], '-sep', ',', '-expand-ids', true);
+voronota_export_adjuncts_of_atoms('-file', params.output_prefix+'_graph_nodes.csv', '-use', '[]', '-no-serial', '-adjuncts', ['atom_index', 'residue_index', 'atom_type', 'residue_type', 'center_x', 'center_y', 'center_z', 'radius', 'sas_area', 'solvdir_x', 'solvdir_y', 'solvdir_z', 'voromqa_sas_energy', 'voromqa_depth', 'voromqa_score_a', 'voromqa_score_r', 'volume', 'volume_vdw', 'ev14', 'ev28', 'ev56', 'ufsr_a1', 'ufsr_a2', 'ufsr_a3', 'ufsr_b1', 'ufsr_b2', 'ufsr_b3', 'ufsr_c1', 'ufsr_c2', 'ufsr_c3', 'bsite_area'], '-sep', ',', '-expand-ids', true);
 
 voronota_export_adjuncts_of_contacts('-file', params.output_prefix+'_graph_links.csv', '-atoms-use', '[]', '-contacts-use', '[-no-solvent]', '-no-serial', '-adjuncts', ['atom_index1', 'atom_index2', 'area', 'boundary', 'distance', 'voromqa_energy', 'seq_sep_class', 'covalent_bond', 'hbond'], '-sep', ',', '-expand-ids', true);
 
