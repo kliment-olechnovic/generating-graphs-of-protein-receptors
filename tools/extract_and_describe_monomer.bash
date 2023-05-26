@@ -29,7 +29,7 @@ MONOMER_OUTPREFIX="./data/monomers/${MONOMER_BASENAME}/${MONOMER_BASENAME}"
 
 if [ -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] && [ -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] && [ -s "${MONOMER_OUTPREFIX}_monomer.pdb" ]
 then
-	echo >&2 "Skipping: graph data already available for complex $COMPLEX_BASENAME chain $CHAIN"
+	echo "Skipping: graph data already available for complex $COMPLEX_BASENAME chain $CHAIN"
 	exit 0
 fi
 
@@ -122,4 +122,12 @@ voronota_export_adjuncts_of_contacts('-file', params.output_prefix+'_graph_links
 EOF
 } \
 | voronota-js
+
+if [ ! -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] || [ ! -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] || [ ! -s "${MONOMER_OUTPREFIX}_monomer.pdb" ]
+then
+	echo >&2 "Failed: graph data for complex $COMPLEX_BASENAME chain $CHAIN"
+	exit 1
+fi
+
+echo "Finished: graph data for complex $COMPLEX_BASENAME chain $CHAIN"
 

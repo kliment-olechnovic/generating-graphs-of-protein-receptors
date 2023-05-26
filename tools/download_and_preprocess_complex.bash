@@ -15,7 +15,7 @@ COMPLEX_OUTPREFIX="./data/complexes/${COMPLEX_BASENAME}/${COMPLEX_BASENAME}"
 
 if [ -s "${COMPLEX_OUTPREFIX}_structure.pdb" ] && [ -s "${COMPLEX_OUTPREFIX}_sequences.fasta" ] && [ -s "${COMPLEX_OUTPREFIX}_iface_contacts.tsv" ] && [ -s "${COMPLEX_OUTPREFIX}_bsite_areas.tsv" ]
 then
-	echo >&2 "Skipping: complex data already available for PDBID $PDBID assembly $ASSEMBLYNUM"
+	echo "Skipping: complex data already available for PDBID $PDBID assembly $ASSEMBLYNUM"
 	exit 0
 fi
 
@@ -50,4 +50,6 @@ then
 	echo >&2 "Error: failed to compute interface contacts for PDBID $PDBID assembly $ASSEMBLYNUM"
 	exit 1
 fi
+
+echo "Finished: complex data for PDBID $PDBID assembly $ASSEMBLYNUM"
 
