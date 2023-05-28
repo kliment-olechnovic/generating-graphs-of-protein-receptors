@@ -2,7 +2,7 @@
 
 ## Idea
 
-This repository provides and showcases tools to automatically annotate binding sites in protein structures and describe annotated structures as graphs.
+This repository provides and showcases tools to automatically annotate protein receptors extracted from protein complexes and describe annotated structures as graphs.
 
 ## Requitements 
 
