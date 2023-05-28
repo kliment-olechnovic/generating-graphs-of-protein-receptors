@@ -30,18 +30,18 @@ then
 	CHAIN="$(cat ${COMPLEXFILE} | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' | head -1 | tr -d '>' | awk '{print $1}')"
 fi
 
-MONOMER_BASENAME="${COMPLEX_BASENAME}_chain_$(echo ${CHAIN} | tr ',' '-')"
-MONOMER_OUTPREFIX="./data/monomer_graphs/${MONOMER_BASENAME}/${MONOMER_BASENAME}"
+BASENAME="${COMPLEX_BASENAME}_chain_$(echo ${CHAIN} | tr ',' '-')"
+OUTPREFIX="./data/receptor_graphs/${BASENAME}/${BASENAME}"
 
 DATA_DESCRIPTION="complex '$COMPLEXFILE' chain '$CHAIN'"
 
-if [ -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] && [ -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] && [ -s "${MONOMER_OUTPREFIX}_monomer.pdb" ] && [ -s "${MONOMER_OUTPREFIX}_iface_contacts.tsv" ] && [ -s "${MONOMER_OUTPREFIX}_bsite_areas.tsv" ] && [ -s "${MONOMER_OUTPREFIX}_sequences.fasta" ] && [ "$FORCEFLAG" != "force" ]
+if [ -s "${OUTPREFIX}_graph_nodes.csv" ] && [ -s "${OUTPREFIX}_graph_links.csv" ] && [ -s "${OUTPREFIX}_receptor.pdb" ] && [ -s "${OUTPREFIX}_iface_contacts.tsv" ] && [ -s "${OUTPREFIX}_bsite_areas.tsv" ] && [ -s "${OUTPREFIX}_sequences.fasta" ] && [ "$FORCEFLAG" != "force" ]
 then
 	echo "Skipping: graph data already available for $DATA_DESCRIPTION"
 	exit 0
 fi
 
-mkdir -p "$(dirname ${MONOMER_OUTPREFIX})"
+mkdir -p "$(dirname ${OUTPREFIX})"
 
 {
 cat "$COMPLEXFILE" \
@@ -52,22 +52,22 @@ cat "$COMPLEXFILE" \
 | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-nucleic]' 2> /dev/null \
 | sed 's/^\(>.*\)$/\1 nucleic/'
 } \
-> "${MONOMER_OUTPREFIX}_sequences.fasta"
+> "${OUTPREFIX}_sequences.fasta"
 
 voronota-js-fast-iface-contacts \
   --input "$COMPLEXFILE" \
   --as-assembly \
   --subselect-contacts "[-a1 [-chain ${CHAIN}] -a2! [-chain ${CHAIN}]]" \
-  --output-contacts-file "${MONOMER_OUTPREFIX}_iface_contacts.tsv" \
-  --output-bsite-file "${MONOMER_OUTPREFIX}_bsite_areas.tsv"
+  --output-contacts-file "${OUTPREFIX}_iface_contacts.tsv" \
+  --output-bsite-file "${OUTPREFIX}_bsite_areas.tsv"
 
-if [ ! -s "${MONOMER_OUTPREFIX}_iface_contacts.tsv" ]
+if [ ! -s "${OUTPREFIX}_iface_contacts.tsv" ]
 then
 	echo >&2 "Error: failed to compute interface contacts for $DATA_DESCRIPTION"
 	exit 1
 fi
 
-if [ ! -s "${MONOMER_OUTPREFIX}_bsite_areas.tsv" ]
+if [ ! -s "${OUTPREFIX}_bsite_areas.tsv" ]
 then
 	echo >&2 "Error: failed to compute binding site areas for $DATA_DESCRIPTION"
 	exit 1
@@ -77,9 +77,9 @@ fi
 cat << EOF
 var params={}
 params.complex_structure_file='$COMPLEXFILE';
-params.bsite_file='${MONOMER_OUTPREFIX}_bsite_areas.tsv';
+params.bsite_file='${OUTPREFIX}_bsite_areas.tsv';
 params.chain_id='$CHAIN';
-params.output_prefix='${MONOMER_OUTPREFIX}';
+params.output_prefix='${OUTPREFIX}';
 EOF
 
 cat << 'EOF'
@@ -158,8 +158,8 @@ voronota_set_adjunct_of_contacts("-use [-v! voromqa_energy] -name voromqa_energy
 voronota_set_adjunct_of_contacts("-use [-v! hbond] -name hbond -value 0");
 voronota_auto_assert_full_success=true;
 
-voronota_export_atoms('-as-pdb', '-file', params.output_prefix+'_monomer.pdb', '-pdb-b-factor', 'bsite_area');
-	
+voronota_export_atoms('-as-pdb', '-file', params.output_prefix+'_receptor.pdb', '-pdb-b-factor', 'bsite_area');
+
 voronota_export_adjuncts_of_atoms('-file', params.output_prefix+'_graph_nodes.csv', '-use', '[]', '-no-serial', '-adjuncts', ['atom_index', 'residue_index', 'atom_type', 'residue_type', 'center_x', 'center_y', 'center_z', 'radius', 'sas_area', 'solvdir_x', 'solvdir_y', 'solvdir_z', 'voromqa_sas_energy', 'voromqa_depth', 'voromqa_score_a', 'voromqa_score_r', 'volume', 'volume_vdw', 'ev14', 'ev28', 'ev56', 'ufsr_a1', 'ufsr_a2', 'ufsr_a3', 'ufsr_b1', 'ufsr_b2', 'ufsr_b3', 'ufsr_c1', 'ufsr_c2', 'ufsr_c3', 'bsite_area'], '-sep', ',', '-expand-ids', true);
 
 voronota_export_adjuncts_of_contacts('-file', params.output_prefix+'_graph_links.csv', '-atoms-use', '[]', '-contacts-use', '[-no-solvent]', '-no-serial', '-adjuncts', ['atom_index1', 'atom_index2', 'area', 'boundary', 'distance', 'voromqa_energy', 'seq_sep_class', 'covalent_bond', 'hbond'], '-sep', ',', '-expand-ids', true);
@@ -168,7 +168,7 @@ EOF
 } \
 | voronota-js
 
-if [ ! -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] || [ ! -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] || [ ! -s "${MONOMER_OUTPREFIX}_monomer.pdb" ]
+if [ ! -s "${OUTPREFIX}_graph_nodes.csv" ] || [ ! -s "${OUTPREFIX}_graph_links.csv" ] || [ ! -s "${OUTPREFIX}_receptor.pdb" ]
 then
 	echo >&2 "Failed: graph data for $DATA_DESCRIPTION"
 	exit 1
