@@ -17,7 +17,7 @@ Options:
     --help | -h                          flag to display help message and exit
     
 Standard output:
-    structure in PDB format
+    Information messages in stdout, error messages in stderr
     
 Examples:
     extract-and-describe-receptor-protein --input-complex "./2zsk.pdb"
@@ -272,8 +272,10 @@ voronota_set_adjunct_of_atoms_by_expression("-use [] -expression _multiply -inpu
 voronota_set_adjunct_of_contacts("-use [] -name seq_sep_class -value 5");
 voronota_set_adjunct_of_contacts("-use [] -name covalent_bond -value 0");
 
+voronota_auto_assert_full_success=false;
 voronota_run_hbplus('-select-contacts', 'hbonds');
 voronota_set_adjunct_of_contacts("-use [hbonds] -name hbond -value 1");
+voronota_auto_assert_full_success=true;
 
 voronota_auto_assert_full_success=false;
 voronota_set_adjunct_of_contacts("-use [-min-seq-sep 0 -max-seq-sep 0] -name seq_sep_class -value 0");
