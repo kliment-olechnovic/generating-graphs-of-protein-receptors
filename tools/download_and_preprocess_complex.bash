@@ -29,8 +29,15 @@ then
 	exit 1
 fi
 
+{
 cat "${COMPLEX_OUTPREFIX}_structure.pdb" \
-| voronota-js-pdb-utensil-print-sequence-from-structure \
+| voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' \
+| sed 's/^\(>.*\)$/\1 protein/'
+
+cat "${COMPLEX_OUTPREFIX}_structure.pdb" \
+| voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-nucleic]' 2> /dev/null \
+| sed 's/^\(>.*\)$/\1 nucleic/'
+} \
 > "${COMPLEX_OUTPREFIX}_sequences.fasta"
 
 if [ ! -s "${COMPLEX_OUTPREFIX}_structure.pdb" ]
