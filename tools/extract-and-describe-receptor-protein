@@ -1,25 +1,132 @@
 #!/bin/bash
 
-COMPLEXFILE="$1"
-CHAIN="$(echo $2 | tr -d ' ')"
-FORCEFLAG="$3"
-EXTRAARG="$4"
+#!/bin/bash
 
-if [ -z "$COMPLEXFILE" ] || [ -z "$CHAIN" ] || [ -n "$EXTRAARG" ]
+function print_help_and_exit
+{
+cat >&2 << 'EOF'
+
+'extract-and-describe-receptor-protein' extracts and describes one or more protein chains from a protein complex.
+
+Options:
+    --input-complex           string  *  path to full protein complex file in PDB format
+    --chain-id                string     chain ID (or comma-separated IDs), default is 'first' to take the first protein chain
+    --output-dir              string  *  output directory path
+    --output-naming           string     output files naming mode, default is 'BASENAME/name', other possibilities are 'BASENAME_name' and 'BASENAME/BASENAME_name'
+    --no-faspr                           flag to not rebuild side-chains with FASPR
+    --help | -h                          flag to display help message and exit
+    
+Standard output:
+    structure in PDB format
+    
+Examples:
+    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb"
+    
+    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" -chain-id "A"
+    
+    extract-and-describe-receptor-protein --input-complex "./3bep.pdb" -chain-id "A,B" --output-dir "./output" --output-naming "BASENAME/BASENAME_name"
+    
+EOF
+exit 1
+}
+
+readonly ZEROARG=$0
+
+if [ -z "$1" ]
 then
-	echo >&2 "Error: invalid arguments, need exactly two (COMPLEXFILE CHAIN) or three (COMPLEXFILE CHAIN force)"
+	print_help_and_exit
+fi
+
+SELFLOCATION="$(dirname ${ZEROARG})"
+
+if [[ $ZEROARG == *"/"* ]]
+then
+	cd "$SELFLOCATION"
+	SELFLOCATION="$(pwd)"
+	export PATH="${SELFLOCATION}:${PATH}"
+	cd - &> /dev/null
+fi
+
+export LC_ALL=C
+
+command -v voronota-js &> /dev/null || { echo >&2 "Error: 'voronota-js' executable not in binaries path"; exit 1; }
+command -v voronota-js-fast-iface-contacts &> /dev/null || { echo >&2 "Error: 'voronota-js-fast-iface-contacts' executable not in binaries path"; exit 1; }
+command -v voronota-js-pdb-utensil-print-sequence-from-structure &> /dev/null || { echo >&2 "Error: 'voronota-js-pdb-utensil-print-sequence-from-structure' executable not in binaries path"; exit 1; }
+
+COMPLEXFILE=""
+CHAIN="first"
+OUTPUT_DIR=""
+OUTPUT_NAMING="BASENAME/name"
+NO_FASPR="false"
+HELP_MODE="false"
+
+while [[ $# > 0 ]]
+do
+	OPTION="$1"
+	OPTARG="$2"
+	shift
+	case $OPTION in
+	--input-complex)
+		COMPLEXFILE="$OPTARG"
+		shift
+		;;
+	--chain-id)
+		CHAIN="$(echo ${OPTARG} | tr -d ' ')"
+		shift
+		;;
+	--output-naming)
+		OUTPUT_NAMING="$OPTARG"
+		shift
+		;;
+	--output-dir)
+		OUTPUT_DIR="$OPTARG"
+		shift
+		;;
+	--no-faspr)
+		NO_FASPR="true"
+		;;
+	-h|--help)
+		HELP_MODE="true"
+		;;
+	*)
+		echo >&2 "Error: invalid command line option '$OPTION'"
+		exit 1
+		;;
+	esac
+done
+
+if [ "$HELP_MODE" == "true" ]
+then
+	print_help_and_exit
+fi
+
+if [ -z "$COMPLEXFILE" ]
+then
+	echo >&2 "Error: no input complex provided"
 	exit 1
 fi
 
-if [ -n "$FORCEFLAG" ] && [ "$FORCEFLAG" != "force" ]
+if [ -z "$CHAIN" ]
 then
-	echo >&2 "Error: invalid flag argument, bust be either empty or 'force'"
+	echo >&2 "Error: no chain ID provided"
+	exit 1
+fi
+
+if [ -z "$OUTPUT_DIR" ]
+then
+	echo >&2 "Error: no output directory provided"
+	exit 1
+fi
+
+if [ "$OUTPUT_NAMING" != "BASENAME/name" ] && [ "$OUTPUT_NAMING" != "BASENAME_name" ] && [ "$OUTPUT_NAMING" != "BASENAME/BASENAME_name" ]
+then
+	echo >&2 "Error: invalid output naming mode"
 	exit 1
 fi
 
 if [ ! -s "$COMPLEXFILE" ]
 then
-	echo >&2 "Error: complex structure file $COMPLEXFILE"
+	echo >&2 "Error: input complex structure file '$COMPLEXFILE' does not exist"
 	exit 1
 fi
 
@@ -30,18 +137,34 @@ then
 	CHAIN="$(cat ${COMPLEXFILE} | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' | head -1 | tr -d '>' | awk '{print $1}')"
 fi
 
+if [ -z "$CHAIN" ]
+then
+	echo >&2 "Error: failed to get first protein chain ID"
+	exit 1
+fi
+
 BASENAME="${COMPLEX_BASENAME}_chain_$(echo ${CHAIN} | tr ',' '-')"
-OUTPREFIX="./data/receptor_graphs/${BASENAME}/${BASENAME}"
+
+OUTPREFIX="${OUTPUT_DIR}/${BASENAME}/"
+
+if [ "$OUTPUT_NAMING" == "BASENAME/name" ]
+then
+	OUTPREFIX="${OUTPUT_DIR}/${BASENAME}/"
+fi
+
+if [ "$OUTPUT_NAMING" == "BASENAME_name" ]
+then
+	OUTPREFIX="${OUTPUT_DIR}/${BASENAME}_"
+fi
+
+if [ "$OUTPUT_NAMING" == "BASENAME/BASENAME_name" ]
+then
+	OUTPREFIX="${OUTPUT_DIR}/${BASENAME}/${BASENAME}_"
+fi
 
 DATA_DESCRIPTION="complex '$COMPLEXFILE' chain '$CHAIN'"
 
-if [ -s "${OUTPREFIX}_graph_nodes.csv" ] && [ -s "${OUTPREFIX}_graph_links.csv" ] && [ -s "${OUTPREFIX}_receptor.pdb" ] && [ -s "${OUTPREFIX}_iface_contacts.tsv" ] && [ -s "${OUTPREFIX}_bsite_areas.tsv" ] && [ -s "${OUTPREFIX}_sequences.fasta" ] && [ "$FORCEFLAG" != "force" ]
-then
-	echo "Skipping: graph data already available for $DATA_DESCRIPTION"
-	exit 0
-fi
-
-mkdir -p "$(dirname ${OUTPREFIX})"
+mkdir -p "$(dirname ${OUTPREFIX}name)"
 
 {
 cat "$COMPLEXFILE" \
@@ -52,22 +175,22 @@ cat "$COMPLEXFILE" \
 | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-nucleic]' 2> /dev/null \
 | sed 's/^\(>.*\)$/\1 nucleic/'
 } \
-> "${OUTPREFIX}_sequences.fasta"
+> "${OUTPREFIX}sequences.fasta"
 
 voronota-js-fast-iface-contacts \
   --input "$COMPLEXFILE" \
   --as-assembly \
   --subselect-contacts "[-a1 [-chain ${CHAIN}] -a2! [-chain ${CHAIN}]]" \
-  --output-contacts-file "${OUTPREFIX}_iface_contacts.tsv" \
-  --output-bsite-file "${OUTPREFIX}_bsite_areas.tsv"
+  --output-contacts-file "${OUTPREFIX}iface_contacts.tsv" \
+  --output-bsite-file "${OUTPREFIX}bsite_areas.tsv"
 
-if [ ! -s "${OUTPREFIX}_iface_contacts.tsv" ]
+if [ ! -s "${OUTPREFIX}iface_contacts.tsv" ]
 then
 	echo >&2 "Error: failed to compute interface contacts for $DATA_DESCRIPTION"
 	exit 1
 fi
 
-if [ ! -s "${OUTPREFIX}_bsite_areas.tsv" ]
+if [ ! -s "${OUTPREFIX}bsite_areas.tsv" ]
 then
 	echo >&2 "Error: failed to compute binding site areas for $DATA_DESCRIPTION"
 	exit 1
@@ -77,9 +200,11 @@ fi
 cat << EOF
 var params={}
 params.complex_structure_file='$COMPLEXFILE';
-params.bsite_file='${OUTPREFIX}_bsite_areas.tsv';
+params.bsite_file='${OUTPREFIX}bsite_areas.tsv';
 params.chain_id='$CHAIN';
-params.output_prefix='${OUTPREFIX}';
+params.no_faspr='$NO_FASPR';
+params.faspr_path='$SELFLOCATION';
+params.output_prefix='$OUTPREFIX';
 EOF
 
 cat << 'EOF'
@@ -87,9 +212,12 @@ voronota_auto_assert_full_success=true;
 
 voronota_import('-file', params.complex_structure_file, '-as-assembly', '-title', 'model');
 
-voronota_restrict_atoms("-use", "[-chain "+params.chain_id+"]");
+voronota_restrict_atoms("-use", "[-protein -chain "+params.chain_id+"]");
 
-voronota_faspr('-lib-path', './tools');
+if(params.no_faspr!="true")
+{
+	voronota_faspr('-lib-path', params.faspr_path);
+}
 
 voronota_import_adjuncts_of_atoms("-file", params.bsite_file, "-no-serial");
 
@@ -158,17 +286,17 @@ voronota_set_adjunct_of_contacts("-use [-v! voromqa_energy] -name voromqa_energy
 voronota_set_adjunct_of_contacts("-use [-v! hbond] -name hbond -value 0");
 voronota_auto_assert_full_success=true;
 
-voronota_export_atoms('-as-pdb', '-file', params.output_prefix+'_receptor.pdb', '-pdb-b-factor', 'bsite_area');
+voronota_export_atoms('-as-pdb', '-file', params.output_prefix+'receptor.pdb', '-pdb-b-factor', 'bsite_area');
 
-voronota_export_adjuncts_of_atoms('-file', params.output_prefix+'_graph_nodes.csv', '-use', '[]', '-no-serial', '-adjuncts', ['atom_index', 'residue_index', 'atom_type', 'residue_type', 'center_x', 'center_y', 'center_z', 'radius', 'sas_area', 'solvdir_x', 'solvdir_y', 'solvdir_z', 'voromqa_sas_energy', 'voromqa_depth', 'voromqa_score_a', 'voromqa_score_r', 'volume', 'volume_vdw', 'ev14', 'ev28', 'ev56', 'ufsr_a1', 'ufsr_a2', 'ufsr_a3', 'ufsr_b1', 'ufsr_b2', 'ufsr_b3', 'ufsr_c1', 'ufsr_c2', 'ufsr_c3', 'bsite_area'], '-sep', ',', '-expand-ids', true);
+voronota_export_adjuncts_of_atoms('-file', params.output_prefix+'graph_nodes.csv', '-use', '[]', '-no-serial', '-adjuncts', ['atom_index', 'residue_index', 'atom_type', 'residue_type', 'center_x', 'center_y', 'center_z', 'radius', 'sas_area', 'solvdir_x', 'solvdir_y', 'solvdir_z', 'voromqa_sas_energy', 'voromqa_depth', 'voromqa_score_a', 'voromqa_score_r', 'volume', 'volume_vdw', 'ev14', 'ev28', 'ev56', 'ufsr_a1', 'ufsr_a2', 'ufsr_a3', 'ufsr_b1', 'ufsr_b2', 'ufsr_b3', 'ufsr_c1', 'ufsr_c2', 'ufsr_c3', 'bsite_area'], '-sep', ',', '-expand-ids', true);
 
-voronota_export_adjuncts_of_contacts('-file', params.output_prefix+'_graph_links.csv', '-atoms-use', '[]', '-contacts-use', '[-no-solvent]', '-no-serial', '-adjuncts', ['atom_index1', 'atom_index2', 'area', 'boundary', 'distance', 'voromqa_energy', 'seq_sep_class', 'covalent_bond', 'hbond'], '-sep', ',', '-expand-ids', true);
+voronota_export_adjuncts_of_contacts('-file', params.output_prefix+'graph_links.csv', '-atoms-use', '[]', '-contacts-use', '[-no-solvent]', '-no-serial', '-adjuncts', ['atom_index1', 'atom_index2', 'area', 'boundary', 'distance', 'voromqa_energy', 'seq_sep_class', 'covalent_bond', 'hbond'], '-sep', ',', '-expand-ids', true);
 
 EOF
 } \
 | voronota-js
 
-if [ ! -s "${OUTPREFIX}_graph_nodes.csv" ] || [ ! -s "${OUTPREFIX}_graph_links.csv" ] || [ ! -s "${OUTPREFIX}_receptor.pdb" ]
+if [ ! -s "${OUTPREFIX}graph_nodes.csv" ] || [ ! -s "${OUTPREFIX}graph_links.csv" ] || [ ! -s "${OUTPREFIX}receptor.pdb" ]
 then
 	echo >&2 "Failed: graph data for $DATA_DESCRIPTION"
 	exit 1
