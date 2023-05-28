@@ -2,18 +2,25 @@
 
 PDBID="$(echo $1 | tr '[:upper:]' '[:lower:]')"
 ASSEMBLYNUM="$2"
-EXTRAARG="$3"
+FORCEFLAG="$3"
+EXTRAARG="$4"
 
 if [ -z "$PDBID" ] || [ -z "$ASSEMBLYNUM" ] || [ -n "$EXTRAARG" ]
 then
-	echo >&2 "Error: invalid arguments, need exactly two: PDBID ASSEMBLYNUM"
+	echo >&2 "Error: invalid arguments, need exactly two (PDBID ASSEMBLYNUM) or three (PDBID ASSEMBLYNUM force)"
+	exit 1
+fi
+
+if [ -n "$FORCEFLAG" ] && [ "$FORCEFLAG" != "force" ]
+then
+	echo >&2 "Error: invalid flag argument, bust be either empty or 'force'"
 	exit 1
 fi
 
 COMPLEX_BASENAME="${PDBID}_as_${ASSEMBLYNUM}"
-COMPLEX_OUTPREFIX="./data/complexes/${COMPLEX_BASENAME}/${COMPLEX_BASENAME}"
+COMPLEX_OUTPREFIX="./data/complexes/${COMPLEX_BASENAME}"
 
-if [ -s "${COMPLEX_OUTPREFIX}_structure.pdb" ] && [ -s "${COMPLEX_OUTPREFIX}_sequences.fasta" ] && [ -s "${COMPLEX_OUTPREFIX}_iface_contacts.tsv" ] && [ -s "${COMPLEX_OUTPREFIX}_bsite_areas.tsv" ]
+if [ -s "${COMPLEX_OUTPREFIX}.pdb" ] && [ "$FORCEFLAG" != "force" ]
 then
 	echo "Skipping: complex data already available for PDBID $PDBID assembly $ASSEMBLYNUM"
 	exit 0
@@ -21,40 +28,17 @@ fi
 
 mkdir -p "$(dirname ${COMPLEX_OUTPREFIX})"
 
-voronota-js-pdb-utensil-download-structure --id "$PDBID" --assembly "$ASSEMBLYNUM" > "${COMPLEX_OUTPREFIX}_structure.pdb"
+voronota-js-pdb-utensil-download-structure --id "$PDBID" --assembly "$ASSEMBLYNUM" > "${COMPLEX_OUTPREFIX}.pdb"
 
-if [ ! -s "${COMPLEX_OUTPREFIX}_structure.pdb" ]
+if [ ! -s "${COMPLEX_OUTPREFIX}.pdb" ]
 then
 	echo >&2 "Error: failed to download PDBID $PDBID assembly $ASSEMBLYNUM"
 	exit 1
 fi
 
-{
-cat "${COMPLEX_OUTPREFIX}_structure.pdb" \
-| voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' \
-| sed 's/^\(>.*\)$/\1 protein/'
-
-cat "${COMPLEX_OUTPREFIX}_structure.pdb" \
-| voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-nucleic]' 2> /dev/null \
-| sed 's/^\(>.*\)$/\1 nucleic/'
-} \
-> "${COMPLEX_OUTPREFIX}_sequences.fasta"
-
-if [ ! -s "${COMPLEX_OUTPREFIX}_structure.pdb" ]
+if [ ! -s "${COMPLEX_OUTPREFIX}.pdb" ]
 then
 	echo >&2 "Error: failed to extract sequence for PDBID $PDBID assembly $ASSEMBLYNUM"
-	exit 1
-fi
-
-voronota-js-fast-iface-contacts \
-  --input "${COMPLEX_OUTPREFIX}_structure.pdb" \
-  --as-assembly \
-  --output-contacts-file "${COMPLEX_OUTPREFIX}_iface_contacts.tsv" \
-  --output-bsite-file "${COMPLEX_OUTPREFIX}_bsite_areas.tsv"
-
-if [ ! -s "${COMPLEX_OUTPREFIX}_iface_contacts.tsv" ]
-then
-	echo >&2 "Error: failed to compute interface contacts for PDBID $PDBID assembly $ASSEMBLYNUM"
 	exit 1
 fi
 

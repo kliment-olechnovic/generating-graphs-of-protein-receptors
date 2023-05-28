@@ -1,45 +1,83 @@
 #!/bin/bash
 
 COMPLEXFILE="$1"
-CHAIN="$2"
-EXTRAARG="$3"
+CHAIN="$(echo $2 | tr -d ' ')"
+FORCEFLAG="$3"
+EXTRAARG="$4"
 
 if [ -z "$COMPLEXFILE" ] || [ -z "$CHAIN" ] || [ -n "$EXTRAARG" ]
 then
-	echo >&2 "Error: invalid arguments, need exactly two: COMPLEXFILE CHAIN"
+	echo >&2 "Error: invalid arguments, need exactly two (COMPLEXFILE CHAIN) or three (COMPLEXFILE CHAIN force)"
 	exit 1
 fi
 
-COMPLEX_BASENAME="$(basename $(dirname $COMPLEXFILE))"
-COMPLEX_OUTPREFIX="./data/complexes/${COMPLEX_BASENAME}/${COMPLEX_BASENAME}"
-
-if [ ! -s "${COMPLEX_OUTPREFIX}_structure.pdb" ] || [ ! -s "${COMPLEX_OUTPREFIX}_sequences.fasta" ] || [ ! -s "${COMPLEX_OUTPREFIX}_iface_contacts.tsv" ] || [ ! -s "${COMPLEX_OUTPREFIX}_bsite_areas.tsv" ]
+if [ -n "$FORCEFLAG" ] && [ "$FORCEFLAG" != "force" ]
 then
-	echo >&2 "Error: complex data not available for complex $COMPLEX_BASENAME"
+	echo >&2 "Error: invalid flag argument, bust be either empty or 'force'"
 	exit 1
 fi
+
+if [ ! -s "$COMPLEXFILE" ]
+then
+	echo >&2 "Error: complex structure file $COMPLEXFILE"
+	exit 1
+fi
+
+COMPLEX_BASENAME="$(basename ${COMPLEXFILE} .pdb)"
 
 if [ "${CHAIN}" == "first" ]
 then
-	CHAIN="$(cat ${COMPLEX_OUTPREFIX}_sequences.fasta | head -1 | tr -d '>' | awk '{print $1}')"
+	CHAIN="$(cat ${COMPLEXFILE} | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' | head -1 | tr -d '>' | awk '{print $1}')"
 fi
 
-MONOMER_BASENAME="${COMPLEX_BASENAME}_chain_${CHAIN}"
-MONOMER_OUTPREFIX="./data/monomers/${MONOMER_BASENAME}/${MONOMER_BASENAME}"
+MONOMER_BASENAME="${COMPLEX_BASENAME}_chain_$(echo ${CHAIN} | tr ',' '-')"
+MONOMER_OUTPREFIX="./data/monomer_graphs/${MONOMER_BASENAME}/${MONOMER_BASENAME}"
 
-if [ -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] && [ -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] && [ -s "${MONOMER_OUTPREFIX}_monomer.pdb" ]
+DATA_DESCRIPTION="complex '$COMPLEXFILE' chain '$CHAIN'"
+
+if [ -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] && [ -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] && [ -s "${MONOMER_OUTPREFIX}_monomer.pdb" ] && [ -s "${MONOMER_OUTPREFIX}_iface_contacts.tsv" ] && [ -s "${MONOMER_OUTPREFIX}_bsite_areas.tsv" ] && [ -s "${MONOMER_OUTPREFIX}_sequences.fasta" ] && [ "$FORCEFLAG" != "force" ]
 then
-	echo "Skipping: graph data already available for complex $COMPLEX_BASENAME chain $CHAIN"
+	echo "Skipping: graph data already available for $DATA_DESCRIPTION"
 	exit 0
 fi
 
 mkdir -p "$(dirname ${MONOMER_OUTPREFIX})"
 
 {
+cat "$COMPLEXFILE" \
+| voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' \
+| sed 's/^\(>.*\)$/\1 protein/'
+
+cat "$COMPLEXFILE" \
+| voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-nucleic]' 2> /dev/null \
+| sed 's/^\(>.*\)$/\1 nucleic/'
+} \
+> "${MONOMER_OUTPREFIX}_sequences.fasta"
+
+voronota-js-fast-iface-contacts \
+  --input "$COMPLEXFILE" \
+  --as-assembly \
+  --subselect-contacts "[-a1 [-chain ${CHAIN}] -a2! [-chain ${CHAIN}]]" \
+  --output-contacts-file "${MONOMER_OUTPREFIX}_iface_contacts.tsv" \
+  --output-bsite-file "${MONOMER_OUTPREFIX}_bsite_areas.tsv"
+
+if [ ! -s "${MONOMER_OUTPREFIX}_iface_contacts.tsv" ]
+then
+	echo >&2 "Error: failed to compute interface contacts for $DATA_DESCRIPTION"
+	exit 1
+fi
+
+if [ ! -s "${MONOMER_OUTPREFIX}_bsite_areas.tsv" ]
+then
+	echo >&2 "Error: failed to compute binding site areas for $DATA_DESCRIPTION"
+	exit 1
+fi
+
+{
 cat << EOF
 var params={}
-params.complex_structure_file='${COMPLEX_OUTPREFIX}_structure.pdb';
-params.bsite_file='${COMPLEX_OUTPREFIX}_bsite_areas.tsv';
+params.complex_structure_file='$COMPLEXFILE';
+params.bsite_file='${MONOMER_OUTPREFIX}_bsite_areas.tsv';
 params.chain_id='$CHAIN';
 params.output_prefix='${MONOMER_OUTPREFIX}';
 EOF
@@ -132,9 +170,9 @@ EOF
 
 if [ ! -s "${MONOMER_OUTPREFIX}_graph_nodes.csv" ] || [ ! -s "${MONOMER_OUTPREFIX}_graph_links.csv" ] || [ ! -s "${MONOMER_OUTPREFIX}_monomer.pdb" ]
 then
-	echo >&2 "Failed: graph data for complex $COMPLEX_BASENAME chain $CHAIN"
+	echo >&2 "Failed: graph data for $DATA_DESCRIPTION"
 	exit 1
 fi
 
-echo "Finished: graph data for complex $COMPLEX_BASENAME chain $CHAIN"
+echo "Finished: graph data for $DATA_DESCRIPTION"
 
