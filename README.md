@@ -4,7 +4,7 @@
 
 This repository provides and showcases tools to automatically annotate protein receptors extracted from protein complexes and describe annotated structures as graphs.
 
-## Requitements 
+## Requirements
 
 Main requrements is [Voronota-JS](https://kliment-olechnovic.github.io/voronota/expansion_js/index.html) from the latest [Voronota package](https://github.com/kliment-olechnovic/voronota/releases/).
 
@@ -24,17 +24,17 @@ Its interface is described below:
         --output-naming           string     output files naming mode, default is 'BASENAME/name', other possibilities are 'BASENAME_name' and 'BASENAME/BASENAME_name'
         --no-faspr                           flag to not rebuild side-chains with FASPR
         --help | -h                          flag to display help message and exit
-        
+    
     Standard output:
         Information messages in stdout, error messages in stderr
-        
+    
     Examples:
-        extract-and-describe-receptor-protein --input-complex "./2zsk.pdb"
+        extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --output-dir "./output"
         
-        extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --chain-id "A"
+        extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --chain-id "A" --output-dir "./output"
         
         extract-and-describe-receptor-protein --input-complex "./3bep.pdb" --chain-id "A,B" --output-dir "./output" --output-naming "BASENAME/BASENAME_name"
-        
+
 
 ## Workflow example scripts
 
@@ -142,7 +142,7 @@ Description of the graph nodes table columns:
 * __volume_vdw__ - volume of the Voronoi cell of an atom constrained inside the van der Waals surface
 * __ev14__, __ev28__, __ev56__ - geometric buriedness values for different minimum probing radii (1.4, 2.8, 5.6), range from 0 (most exposed) to 1 (most buried), value of 2 is assigned to all atoms not accessible by external probes
 * __ufsr_a1__, __ufsr_a2__, ... , __ufsr_c2__, __ufsr_c3__ - geometric descriptors calculated using the Ultra-fast Shape Recognition algorithm adapted for polymers
-* __bsite_area__ - sum of all inbter-chain contact area involving the node atom
+* __bsite_area__ - sum of all inter-chain contact area involving the node atom
 
 ### Data format of the graph links file
 

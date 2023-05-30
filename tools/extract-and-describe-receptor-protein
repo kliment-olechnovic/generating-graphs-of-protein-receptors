@@ -20,12 +20,12 @@ Standard output:
     Information messages in stdout, error messages in stderr
     
 Examples:
-    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb"
+    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --output-dir "./output"
     
-    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --chain-id "A"
+    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --chain-id "A" --output-dir "./output"
     
     extract-and-describe-receptor-protein --input-complex "./3bep.pdb" --chain-id "A,B" --output-dir "./output" --output-naming "BASENAME/BASENAME_name"
-    
+
 EOF
 exit 1
 }
