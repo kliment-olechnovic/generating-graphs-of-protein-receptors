@@ -1,4 +1,4 @@
-# Annotating binding sites of proteins
+# Generating graphs of protein receptors
 
 ## Idea
 
@@ -193,4 +193,13 @@ The area, volume, and energy features can be simply summed when going to the res
 
 I made a separate [repository](https://github.com/kliment-olechnovic/gnn-custom-dataset-example)
 that is intended purely to demonstrate how to make a graph dataset for PyTorch Geometric from graph nodes (vertices) and links (edges) stored in CSV files.
+
+### About using 3D vectors for input
+
+Some features (__center_x__, __center_y__, __center_z__, __solvdir_x__, __solvdir_y__, __solvdir_z__) need to be either ignored or used with special care ensuring rotational and translational invariance.
+There are multiple GNN methods already that work with such 3D data. For example:
+
+* E(n) Equivariant Graph Neural Networks - [https://arxiv.org/abs/2102.09844](https://arxiv.org/abs/2102.09844)
+* Geometric Vector Perceptrons - [https://arxiv.org/abs/2009.01411](https://arxiv.org/abs/2009.01411)
+* Using protein residue local oriented frames - [doi.org/10.1093/bioinformatics/btz122](https://doi.org/10.1093/bioinformatics/btz122), [doi.org/10.1371/journal.pone.0221347](https://doi.org/10.1371/journal.pone.0221347)
 
