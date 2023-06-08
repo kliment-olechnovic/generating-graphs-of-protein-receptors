@@ -201,5 +201,6 @@ There are multiple GNN methods already that work with such 3D data. For example:
 
 * E(n) Equivariant Graph Neural Networks - [https://arxiv.org/abs/2102.09844](https://arxiv.org/abs/2102.09844)
 * Geometric Vector Perceptrons - [https://arxiv.org/abs/2009.01411](https://arxiv.org/abs/2009.01411)
+* Tensor field networks - [https://arxiv.org/abs/1802.08219](https://arxiv.org/abs/1802.08219)
 * Using protein residue local oriented frames - [doi.org/10.1093/bioinformatics/btz122](https://doi.org/10.1093/bioinformatics/btz122), [doi.org/10.1371/journal.pone.0221347](https://doi.org/10.1371/journal.pone.0221347)
 
