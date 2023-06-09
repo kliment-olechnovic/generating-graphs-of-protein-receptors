@@ -23,6 +23,7 @@ Its interface is described below:
         --output-dir              string  *  output directory path
         --output-naming           string     output files naming mode, default is 'BASENAME/name', other possibilities are 'BASENAME_name' and 'BASENAME/BASENAME_name'
         --no-faspr                           flag to not rebuild side-chains with FASPR
+        --all-chains-no-bsite                flag to describe whole input structure without looking for interfaces and without annotating binding sites
         --help | -h                          flag to display help message and exit
     
     Standard output:
@@ -34,6 +35,8 @@ Its interface is described below:
         extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --chain-id "A" --output-dir "./output"
         
         extract-and-describe-receptor-protein --input-complex "./3bep.pdb" --chain-id "A,B" --output-dir "./output" --output-naming "BASENAME/BASENAME_name"
+        
+        extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --all-chains-no-bsite --no-faspr --output-dir "./output"
 
 
 ## Workflow example scripts
