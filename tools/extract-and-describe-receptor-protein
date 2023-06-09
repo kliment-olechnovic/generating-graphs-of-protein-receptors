@@ -14,6 +14,7 @@ Options:
     --output-dir              string  *  output directory path
     --output-naming           string     output files naming mode, default is 'BASENAME/name', other possibilities are 'BASENAME_name' and 'BASENAME/BASENAME_name'
     --no-faspr                           flag to not rebuild side-chains with FASPR
+    --all-chains-no-bsite                flag to describe whole input structure without looking for interfaces and without annotating binding sites
     --help | -h                          flag to display help message and exit
     
 Standard output:
@@ -25,6 +26,8 @@ Examples:
     extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --chain-id "A" --output-dir "./output"
     
     extract-and-describe-receptor-protein --input-complex "./3bep.pdb" --chain-id "A,B" --output-dir "./output" --output-naming "BASENAME/BASENAME_name"
+    
+    extract-and-describe-receptor-protein --input-complex "./2zsk.pdb" --all-chains-no-bsite --no-faspr --output-dir "./output"
 
 EOF
 exit 1
@@ -56,9 +59,11 @@ command -v hbplus &> /dev/null || { echo >&2 "Error: 'hbplus' executable not in 
 
 COMPLEXFILE=""
 CHAIN="first"
+CHAIN_PROVIDED="false"
 OUTPUT_DIR=""
 OUTPUT_NAMING="BASENAME/name"
 NO_FASPR="false"
+ALL_CHAINS_NO_BSITE="false"
 HELP_MODE="false"
 
 while [[ $# > 0 ]]
@@ -73,6 +78,7 @@ do
 		;;
 	--chain-id)
 		CHAIN="$(echo ${OPTARG} | tr -d ' ')"
+		CHAIN_PROVIDED="true"
 		shift
 		;;
 	--output-naming)
@@ -85,6 +91,9 @@ do
 		;;
 	--no-faspr)
 		NO_FASPR="true"
+		;;
+	--all-chains-no-bsite)
+		ALL_CHAINS_NO_BSITE="true"
 		;;
 	-h|--help)
 		HELP_MODE="true"
@@ -107,9 +116,20 @@ then
 	exit 1
 fi
 
+if [ "$ALL_CHAINS_NO_BSITE" == "true" ] && [ "$CHAIN_PROVIDED" == "true" ]
+then
+	echo >&2 "Error: '--all-chains-no-bsite' and '--chain-id' used together"
+	exit 1
+fi
+
+if [ "$ALL_CHAINS_NO_BSITE" == "true" ]
+then
+	CHAIN="all"
+fi
+
 if [ -z "$CHAIN" ]
 then
-	echo >&2 "Error: no chain ID provided"
+	echo >&2 "Error: no chain ID set"
 	exit 1
 fi
 
@@ -136,11 +156,14 @@ COMPLEX_BASENAME="$(basename ${COMPLEXFILE} .pdb)"
 if [ "${CHAIN}" == "first" ]
 then
 	CHAIN="$(cat ${COMPLEXFILE} | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' | head -1 | tr -d '>' | awk '{print $1}')"
+elif [ "${CHAIN}" == "all" ]
+then
+	CHAIN="$(cat ${COMPLEXFILE} | voronota-js-pdb-utensil-print-sequence-from-structure --selection '[-protein]' | egrep '^>' | tr -d '>' | awk '{print $1}' | tr '\n' ',' | sed 's/,$//')"
 fi
 
 if [ -z "$CHAIN" ]
 then
-	echo >&2 "Error: failed to get first protein chain ID"
+	echo >&2 "Error: failed to get protein chain ID from generated sequence file"
 	exit 1
 fi
 
@@ -178,30 +201,37 @@ cat "$COMPLEXFILE" \
 } \
 > "${OUTPREFIX}sequences.fasta"
 
-voronota-js-fast-iface-contacts \
-  --input "$COMPLEXFILE" \
-  --as-assembly \
-  --subselect-contacts "[-a1 [-chain ${CHAIN}] -a2! [-chain ${CHAIN}]]" \
-  --output-contacts-file "${OUTPREFIX}iface_contacts.tsv" \
-  --output-bsite-file "${OUTPREFIX}bsite_areas.tsv"
+BSITEFILE=""
 
-if [ ! -s "${OUTPREFIX}iface_contacts.tsv" ]
+if [ "$ALL_CHAINS_NO_BSITE" != "true" ]
 then
-	echo >&2 "Error: failed to compute interface contacts for $DATA_DESCRIPTION"
-	exit 1
-fi
-
-if [ ! -s "${OUTPREFIX}bsite_areas.tsv" ]
-then
-	echo >&2 "Error: failed to compute binding site areas for $DATA_DESCRIPTION"
-	exit 1
+	voronota-js-fast-iface-contacts \
+	  --input "$COMPLEXFILE" \
+	  --as-assembly \
+	  --subselect-contacts "[-a1 [-chain ${CHAIN}] -a2! [-chain ${CHAIN}]]" \
+	  --output-contacts-file "${OUTPREFIX}iface_contacts.tsv" \
+	  --output-bsite-file "${OUTPREFIX}bsite_areas.tsv"
+	
+	if [ ! -s "${OUTPREFIX}iface_contacts.tsv" ]
+	then
+		echo >&2 "Error: failed to compute interface contacts for $DATA_DESCRIPTION"
+		exit 1
+	fi
+	
+	if [ ! -s "${OUTPREFIX}bsite_areas.tsv" ]
+	then
+		echo >&2 "Error: failed to compute binding site areas for $DATA_DESCRIPTION"
+		exit 1
+	fi
+	
+	BSITEFILE="${OUTPREFIX}bsite_areas.tsv"
 fi
 
 {
 cat << EOF
 var params={}
 params.complex_structure_file='$COMPLEXFILE';
-params.bsite_file='${OUTPREFIX}bsite_areas.tsv';
+params.bsite_file='$BSITEFILE';
 params.chain_id='$CHAIN';
 params.no_faspr='$NO_FASPR';
 params.faspr_path='$SELFLOCATION';
@@ -220,7 +250,10 @@ if(params.no_faspr!="true")
 	voronota_faspr('-lib-path', params.faspr_path);
 }
 
-voronota_import_adjuncts_of_atoms("-file", params.bsite_file, "-no-serial");
+if(params.bsite_file!='')
+{
+	voronota_import_adjuncts_of_atoms("-file", params.bsite_file, "-no-serial");
+}
 
 voronota_set_adjunct_of_atoms("-use [-v! bsite_area] -name bsite_area -value 0");
 
